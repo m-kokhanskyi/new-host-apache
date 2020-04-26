@@ -1,0 +1,47 @@
+#!/bin/bash
+
+echo -n "Введите имя создаваемого хоста (без www): "
+read newHost
+
+folder=${newHost}
+
+newPath="/var/www/${folder}"
+
+# Создаем директорию
+sudo mkdir -p ${newPath}
+
+#Права на запись
+sudo chmod -R g+rw "/var/www/${folder}"
+sudo chown -R max:www-data "/var/www/${folder}"
+
+#Производим запись в hosts
+file="/etc/hosts"
+b=$(cat $file)
+newContent="127.0.0.1	${newHost}"$'\n'"127.0.0.1	www.${newHost}"$'\n'$b
+#newContent="127.0.0.1	${newHost}"$'\n'$b
+sudo bash -c "echo '${newContent}' > $file"
+
+#Добавляем сайт в sites-available и прописываем в него нужные директивы
+sap=/etc/apache2/sites-available/${newHost}.conf
+sudo touch $sap
+sudo chmod 644 $sap
+directives="<VirtualHost *:80>
+ServerName ${newHost}
+ServerAlias www.${newHost}
+ServerAdmin maxim.kohanskij@outlook.com
+DocumentRoot ${newPath}/public
+<Directory ${newPath:1}/public/>
+AllowOverride All
+</Directory>
+</VirtualHost>"
+echo "$directives">$sap
+
+#Включаем виртуальный хост
+sudo a2ensite $newHost
+
+#Включаем rewrite
+sudo a2enmod rewrite
+
+#Перезапускаем сервер
+sudo service apache2 restart
+
